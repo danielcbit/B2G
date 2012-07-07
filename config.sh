@@ -45,7 +45,7 @@ if [ -n "$2" ]; then
 	git commit -m "manifest" &&
 	cd ..
 else
-	GITREPO="git://github.com/mozilla-b2g/b2g-manifest"
+	GITREPO="git@github.com:romaxa/b2g-manifest.git"
 fi
 
 case "$1" in
@@ -75,8 +75,15 @@ case "$1" in
 
 "otoro")
 	echo DEVICE=otoro > .config &&
+	echo LUNCH=n9-userdebug >> .config &&
 	repo_sync otoro &&
 	(cd device/qcom/otoro && ./extract-files.sh)
+	;;
+
+"nokia-n9")
+	echo DEVICE=n9 > .config &&
+	echo LUNCH=n9-userdebug >> .config &&
+	repo_sync nokian9
 	;;
 
 "emulator")
