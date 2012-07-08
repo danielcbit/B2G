@@ -153,5 +153,6 @@ mkdir -p $TARGET_PATH/b2g_fs
 cp -rf $TARGET_PATH/root/* $TARGET_PATH/b2g_fs
 cp -rf $TARGET_PATH/system/* $TARGET_PATH/b2g_fs/system/
 cd $TARGET_PATH/b2g_fs && tar -cf ../b2g_fs.tar ./
+rm -f $TARGET_PATH/b2g_fs.tar.gz
 gzip $TARGET_PATH/b2g_fs.tar
 rm -rf $TARGET_PATH/b2g_fs
