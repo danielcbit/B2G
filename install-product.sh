@@ -132,7 +132,7 @@ hw.fakegps.altitude=310.0
 " > $TARGET_PATH/root/default.prop
 
 # Kernel modules
-MODULES_DIR=$TARGET_PATH/system/lib/modules/2.6.32.48-dfl61
+MODULES_DIR=2.6.32.48-dfl61-20115101
 rm -f $TARGET_PATH/system/lib/modules/current
 mkdir -p $TARGET_PATH/system/lib/modules/
 ln -s $MODULES_DIR $TARGET_PATH/system/lib/modules/current
