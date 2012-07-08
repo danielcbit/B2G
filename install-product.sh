@@ -2,8 +2,10 @@
 
 . setup.sh &&
 
-LOCAL_PATH=$(pwd)/device/nokia/n9
-TARGET_PATH=$(pwd)/out/target/product/n9
+CURDIR=$(pwd)
+LOCAL_PATH=$CURDIR/device/$VENDOR/$DEVICE
+TARGET_PATH=$CURDIR/out/target/$VENDOR/$DEVICE
+KERNEL_PATH=$CURDIR/boot/kernel-$VENDOR-$DEVICE
 
 mkdir -p $TARGET_PATH/root/bin
 mkdir -p $TARGET_PATH/system/etc/wifi
@@ -132,9 +134,16 @@ hw.fakegps.altitude=310.0
 # Kernel modules
 MODULES_DIR=$TARGET_PATH/system/lib/modules/2.6.32.48-dfl61
 rm -f $TARGET_PATH/system/lib/modules/current
+mkdir -p $TARGET_PATH/system/lib/modules/
 ln -s $MODULES_DIR $TARGET_PATH/system/lib/modules/current
 
-mkdir -p $TARGET_PATH/system/vendor/firmware
+mkdir -p $TARGET_PATH/system/bin/sgx/
 cp -f `find $KERNEL_PATH -name omaplfb.ko` $TARGET_PATH/system/bin/sgx/
 cp -f `find $KERNEL_PATH -name pvrsrvkm.ko` $TARGET_PATH/system/bin/sgx/
+mkdir -p $TARGET_PATH/system/vendor/firmware
 # cp -f libpn544_fw.so $TARGET_PATH/system/vendor/firmware
+
+cp -rf $GECKO_OBJDIR/dist/b2g $TARGET_PATH/system/
+rm -rf $TARGET_PATH/root/data/local
+mkdir -p $TARGET_PATH/root/data/local
+cp -rf $CURDIR/gaia/profile $TARGET_PATH/root/data/local
