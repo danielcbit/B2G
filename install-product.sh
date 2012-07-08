@@ -5,7 +5,6 @@
 CURDIR=$(pwd)
 LOCAL_PATH=$CURDIR/device/$VENDOR/$DEVICE
 TARGET_PATH=$CURDIR/out/target/product/$DEVICE
-KERNEL_PATH=$CURDIR/boot/kernel-$VENDOR-$DEVICE
 TOOLCHAIN=$ANDROID_EABI_TOOLCHAIN/arm-linux-androideabi
 
 mkdir -p $TARGET_PATH/root/bin
@@ -49,7 +48,7 @@ cp frameworks/base/data/etc/android.hardware.location.gps.xml $TARGET_PATH/syste
 cp frameworks/base/data/etc/android.software.sip.voip.xml $TARGET_PATH/system/etc/permissions/android.software.sip.voip.xml
 
 CURDIR=$(pwd)
-cd $CURDIR/hardware/ti/sgx/gfx_rel_es6.x_android;
+cd $CURDIR/hardware/ti/sgx/gfx_rel_es5.x_android;
 ./install.sh --no-x --no-bcdevice --root $CURDIR/out/target/product/$DEVICE
 cd $CURDIR
 
@@ -133,20 +132,23 @@ hw.fakegps.altitude=310.0
 " > $TARGET_PATH/root/default.prop
 
 # Kernel modules
+KERNEL_PATH=$CURDIR/boot/kernel-$VENDOR-$DEVICE
 KERNEL_VER=2.6.32.48-dfl61-20115101
+KERNEL_PATH=$CURDIR/boot/kernel-$VENDOR-$DEVICE-prebuilt
+
 rm -rf $TARGET_PATH/system/lib/modules/$KERNEL_VER
 rm -f $TARGET_PATH/system/lib/modules/current
 mkdir -p $TARGET_PATH/system/lib/modules/$KERNEL_VER
-for str in `find $KERNEL_PATH -name *.ko`; do
-  cp -rfL $str $TARGET_PATH/system/lib/modules/$KERNEL_VER
-done
-$TOOLCHAIN-strip $TARGET_PATH/system/lib/modules/$KERNEL_VER/*.ko
-ln -s $KERNEL_VER $TARGET_PATH/system/lib/modules/current
+
+#for str in `find $KERNEL_PATH -name *.ko`; do
+#  cp -rfL $str $TARGET_PATH/system/lib/modules/$KERNEL_VER
+#done
+#ln -s $KERNEL_VER $TARGET_PATH/system/lib/modules/current
+cp -rf $KERNEL_PATH/modules/* $TARGET_PATH/system/lib/modules/
 
 mkdir -p $TARGET_PATH/system/bin/sgx/
 cp -f `find $KERNEL_PATH -name omaplfb.ko` $TARGET_PATH/system/bin/sgx/
 cp -f `find $KERNEL_PATH -name pvrsrvkm.ko` $TARGET_PATH/system/bin/sgx/
-$TOOLCHAIN-strip $TARGET_PATH/system/bin/sgx/*.ko
 mkdir -p $TARGET_PATH/system/vendor/firmware
 # cp -f libpn544_fw.so $TARGET_PATH/system/vendor/firmware
 
