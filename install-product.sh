@@ -6,6 +6,7 @@ CURDIR=$(pwd)
 LOCAL_PATH=$CURDIR/device/$VENDOR/$DEVICE
 TARGET_PATH=$CURDIR/out/target/product/$DEVICE
 KERNEL_PATH=$CURDIR/boot/kernel-$VENDOR-$DEVICE
+TOOLCHAIN=$ANDROID_EABI_TOOLCHAIN/arm-linux-androideabi
 
 mkdir -p $TARGET_PATH/root/bin
 mkdir -p $TARGET_PATH/system/etc/wifi
@@ -132,14 +133,20 @@ hw.fakegps.altitude=310.0
 " > $TARGET_PATH/root/default.prop
 
 # Kernel modules
-MODULES_DIR=2.6.32.48-dfl61-20115101
+KERNEL_VER=2.6.32.48-dfl61-20115101
+rm -rf $TARGET_PATH/system/lib/modules/$KERNEL_VER
 rm -f $TARGET_PATH/system/lib/modules/current
-mkdir -p $TARGET_PATH/system/lib/modules/
-ln -s $MODULES_DIR $TARGET_PATH/system/lib/modules/current
+mkdir -p $TARGET_PATH/system/lib/modules/$KERNEL_VER
+for str in `find $KERNEL_PATH -name *.ko`; do
+  cp -rfL $str $TARGET_PATH/system/lib/modules/$KERNEL_VER
+done
+$TOOLCHAIN-strip $TARGET_PATH/system/lib/modules/$KERNEL_VER/*.ko
+ln -s $KERNEL_VER $TARGET_PATH/system/lib/modules/current
 
 mkdir -p $TARGET_PATH/system/bin/sgx/
 cp -f `find $KERNEL_PATH -name omaplfb.ko` $TARGET_PATH/system/bin/sgx/
 cp -f `find $KERNEL_PATH -name pvrsrvkm.ko` $TARGET_PATH/system/bin/sgx/
+$TOOLCHAIN-strip $TARGET_PATH/system/bin/sgx/*.ko
 mkdir -p $TARGET_PATH/system/vendor/firmware
 # cp -f libpn544_fw.so $TARGET_PATH/system/vendor/firmware
 
