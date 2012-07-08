@@ -130,17 +130,11 @@ hw.fakegps.altitude=310.0
 " > $TARGET_PATH/root/default.prop
 
 # Kernel modules
-mkdir -p $TARGET_PATH/system/lib/modules/2.6.32.48-dfl61-20115101
+MODULES_DIR=$TARGET_PATH/system/lib/modules/2.6.32.48-dfl61
 rm -f $TARGET_PATH/system/lib/modules/current
-ln -s 2.6.32.48-dfl61-20115101 $TARGET_PATH/system/lib/modules/current
-
-cd $TARGET_PATH/system/lib/modules/2.6.32.48-dfl61-20115101
-#for str in `find $KERNEL_NG -name *.ko`; do
-#  cp -rf $str .
-#done
-cd $CURDIR
+ln -s $MODULES_DIR $TARGET_PATH/system/lib/modules/current
 
 mkdir -p $TARGET_PATH/system/vendor/firmware
+cp -f `find $KERNEL_PATH -name omaplfb.ko` $TARGET_PATH/system/bin/sgx/
+cp -f `find $KERNEL_PATH -name pvrsrvkm.ko` $TARGET_PATH/system/bin/sgx/
 # cp -f libpn544_fw.so $TARGET_PATH/system/vendor/firmware
-# cp -f omaplfb.ko $TARGET_PATH/system/bin/sgx/
-# cp -f pvrsrvkm.ko $TARGET_PATH/system/bin/sgx/

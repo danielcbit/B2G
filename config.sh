@@ -82,7 +82,7 @@ case "$1" in
 
 "nokia-n9")
 	echo DEVICE=n9 > .config &&
-	echo VENDOR=nokia > .config &&
+	echo VENDOR=nokia >> .config &&
 	echo LUNCH=n9-userdebug >> .config &&
 	repo_sync nokian9
 	;;
@@ -106,6 +106,7 @@ case "$1" in
 	echo - galaxy-s2
 	echo - galaxy-nexus
 	echo - nexus-s
+	echo - nokia-n9
 	echo - otoro
 	echo - emulator
 	echo - emulator-x86
