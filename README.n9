@@ -1,0 +1,21 @@
+# Building
+git clone git://github.com/romaxa/B2G.git
+./config nokia-n9
+./repo sync
+./build.sh
+./install-product.sh
+
+b2g_fs.tar.gz - is available in out/target/product/n9/b2g_fs.tar.gz
+
+# Flashing to device with dualboot
+Follow instructions from http://forum.nitdroid.com/index.php?topic=94.0
+
+but instead of nitdroid_n9_ics_alpha1.tar.bz2 use b2g_fs.tar.gz
+
+After boot connect device
+adb connect 192.168.2.15:5039
+
+./flash gecko
+./flash gaia
+
+Whoalya Basic stuff should work
