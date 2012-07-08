@@ -4,7 +4,7 @@
 
 CURDIR=$(pwd)
 LOCAL_PATH=$CURDIR/device/$VENDOR/$DEVICE
-TARGET_PATH=$CURDIR/out/target/$VENDOR/$DEVICE
+TARGET_PATH=$CURDIR/out/target/product/$DEVICE
 KERNEL_PATH=$CURDIR/boot/kernel-$VENDOR-$DEVICE
 
 mkdir -p $TARGET_PATH/root/bin
