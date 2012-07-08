@@ -150,11 +150,6 @@ $TOOLCHAIN-strip $TARGET_PATH/system/bin/sgx/*.ko
 mkdir -p $TARGET_PATH/system/vendor/firmware
 # cp -f libpn544_fw.so $TARGET_PATH/system/vendor/firmware
 
-cp -rf $GECKO_OBJDIR/dist/b2g $TARGET_PATH/system/
-rm -rf $TARGET_PATH/root/data/local
-mkdir -p $TARGET_PATH/root/data/local
-cp -rf $CURDIR/gaia/profile $TARGET_PATH/root/data/local
-
 rm -rf $TARGET_PATH/b2g_fs
 mkdir -p $TARGET_PATH/b2g_fs
 cp -rf $TARGET_PATH/root/* $TARGET_PATH/b2g_fs
