@@ -147,3 +147,11 @@ cp -rf $GECKO_OBJDIR/dist/b2g $TARGET_PATH/system/
 rm -rf $TARGET_PATH/root/data/local
 mkdir -p $TARGET_PATH/root/data/local
 cp -rf $CURDIR/gaia/profile $TARGET_PATH/root/data/local
+
+rm -rf $TARGET_PATH/b2g_fs
+mkdir -p $TARGET_PATH/b2g_fs
+cp -rf $TARGET_PATH/root/* $TARGET_PATH/b2g_fs
+cp -rf $TARGET_PATH/system/* $TARGET_PATH/b2g_fs/system/
+cd $TARGET_PATH/b2g_fs && tar -cf ../b2g_fs.tar ./
+gzip $TARGET_PATH/b2g_fs.tar
+rm -rf $TARGET_PATH/b2g_fs
