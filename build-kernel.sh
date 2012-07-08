@@ -16,6 +16,6 @@ cd $KERNEL_PATH && tar cf - `echo * | sed -e 's/ debian//g' -e 's/\.deb//g' ` | 
 cd $KERNEL_PATH_BLD && make ARCH=arm CROSS_COMPILE=$TOOLCHAIN rm581_nitdroid_defconfig
 cd $KERNEL_PATH_BLD && make ARCH=arm CROSS_COMPILE=$TOOLCHAIN $MAKE_FLAGS zImage
 cd $KERNEL_PATH_BLD && make ARCH=arm CROSS_COMPILE=$TOOLCHAIN $MAKE_FLAGS modules
-cd $KERNEL_PATH_BLD make ARCH=arm CROSS_COMPILE=$TOOLCHAIN $MAKE_FLAGS modules_prepare
-cd $KERNEL_PATH_BLD make ARCH=arm CROSS_COMPILE=$TOOLCHAIN $MAKE_FLAGS INSTALL_MOD_PATH=$TARGET_PATH/system modules_install
+cd $KERNEL_PATH_BLD && make ARCH=arm CROSS_COMPILE=$TOOLCHAIN $MAKE_FLAGS modules_prepare
+cd $KERNEL_PATH_BLD && make ARCH=arm CROSS_COMPILE=$TOOLCHAIN $MAKE_FLAGS INSTALL_MOD_PATH=$TARGET_PATH/system modules_install
 cd $CURDIR
