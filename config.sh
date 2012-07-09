@@ -75,7 +75,6 @@ case "$1" in
 
 "otoro")
 	echo DEVICE=otoro > .config &&
-	echo LUNCH=n9-userdebug >> .config &&
 	repo_sync otoro &&
 	(cd device/qcom/otoro && ./extract-files.sh)
 	;;
