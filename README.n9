@@ -1,4 +1,4 @@
-# Building
+# Building, tested on X86 debian testing linux
 git clone git://github.com/romaxa/B2G.git
 ./config nokia-n9
 ./repo sync
