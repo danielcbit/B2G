@@ -79,11 +79,10 @@ case "$1" in
 	(cd device/qcom/otoro && ./extract-files.sh)
 	;;
 
-"nokia-n9")
-	echo DEVICE=n9 > .config &&
-	echo VENDOR=nokia >> .config &&
-	echo LUNCH=n9-userdebug >> .config &&
-	repo_sync nokian9
+"pandaboard")
+	echo DEVICE=panda > .config &&
+	repo_sync panda &&
+	(cd device/ti/panda && ./download-blobs.sh)
 	;;
 
 "emulator")
@@ -98,6 +97,13 @@ case "$1" in
 	repo_sync master
 	;;
 
+"nokia-n9")
+	echo DEVICE=n9 > .config &&
+	echo VENDOR=nokia >> .config &&
+	echo LUNCH=n9-userdebug >> .config &&
+	repo_sync nokian9
+	;;
+
 *)
 	echo Usage: $0 \(device name\)
 	echo
@@ -107,6 +113,7 @@ case "$1" in
 	echo - nexus-s
 	echo - nokia-n9
 	echo - otoro
+	echo - pandaboard
 	echo - emulator
 	echo - emulator-x86
 	exit -1
