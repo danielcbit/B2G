@@ -34,7 +34,7 @@ function install_core_init()
   rm -f $TARGET_PATH/system/etc/firmware
   mkdir -p $TARGET_PATH/system/etc/firmware
   cp -rf $KERNEL_PATH/firmware/* $TARGET_PATH/system/etc/firmware/
-  ln -s /mnt/initfs/lib/firmware $TARGET_PATH/system/etc/firmware
+  cp -rf $KERNEL_PATH/hacks/* $TARGET_PATH/system/bin/
   cp $TARGET_PATH/obj/EXECUTABLES/fakedsme_intermediates/fakedsme $TARGET_PATH/system/bin/
 }
 
