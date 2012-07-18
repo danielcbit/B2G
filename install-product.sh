@@ -32,6 +32,8 @@ function install_core_init()
   cp $LOCAL_PATH/etc/excluded-input-devices.xml $TARGET_PATH/system/etc/excluded-input-devices.xml
   cp $LOCAL_PATH/system/xbin/rr $TARGET_PATH/system/xbin/rr
   rm -f $TARGET_PATH/system/etc/firmware
+  mkdir -p $TARGET_PATH/system/etc/firmware
+  cp -rf $KERNEL_PATH/firmware/* $TARGET_PATH/system/etc/firmware/
   ln -s /mnt/initfs/lib/firmware $TARGET_PATH/system/etc/firmware
   cp $TARGET_PATH/obj/EXECUTABLES/fakedsme_intermediates/fakedsme $TARGET_PATH/system/bin/
 }
