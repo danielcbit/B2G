@@ -21,7 +21,8 @@ if [ "$1" = "attach"  -a  -n "$2" ] ; then
       exit 1;
    fi
    GDB_PORT=$((10000 + ($B2G_PID + $(id -u)) % 50000))
-   B2G_BIN=`$ADB shell cat /proc/$B2G_PID/cmdline | awk '{ print \$1; }'`
+   # cmdline is null separated
+   B2G_BIN=`$ADB shell cat /proc/$B2G_PID/cmdline | awk 'BEGIN{FS="\0"}{ print \$1; }'`
 else
    B2G_PID=`$ADB shell toolbox ps | grep "b2g" | awk '{ print \$2; }'`
 fi
@@ -44,12 +45,15 @@ if [ "$1" = "attach" ]; then
 
    $ADB shell gdbserver :$GDB_PORT --attach $B2G_PID &
 else
-   [ -n "$1" ] && B2G_BIN=$1
+   if [ -n "$1" ]; then
+      B2G_BIN=$1
+      shift
+   fi
    [ -n "$MOZ_DEBUG_CHILD_PROCESS" ] && GDBSERVER_ENV="$GDBSERVER_ENV MOZ_DEBUG_CHILD_PROCESS=$MOZ_DEBUG_CHILD_PROCESS "
    [ -n "$MOZ_IPC_MESSAGE_LOG" ]     && GDBSERVER_ENV="$GDBSERVER_ENV MOZ_IPC_MESSAGE_LOG=$MOZ_IPC_MESSAGE_LOG "
    $ADB shell kill $B2G_PID
-   $ADB shell stop b2g
-   $ADB shell LD_LIBRARY_PATH=/system/b2g $GDBSERVER_ENV gdbserver --multi :$GDB_PORT $B2G_BIN &
+   [ "$B2G_BIN" = "/system/b2g/b2g" ] && $ADB shell stop b2g
+   $ADB shell LD_LIBRARY_PATH=/system/b2g $GDBSERVER_ENV gdbserver --multi :$GDB_PORT $B2G_BIN $@ &
 fi
 
 sleep 1
