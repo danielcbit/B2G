@@ -31,7 +31,7 @@ function install_core_init()
   cp $LOCAL_PATH/etc/wifi/wpa_supplicant.conf $TARGET_PATH/system/etc/wifi/wpa_supplicant.conf
   cp $LOCAL_PATH/etc/excluded-input-devices.xml $TARGET_PATH/system/etc/excluded-input-devices.xml
   cp $LOCAL_PATH/system/xbin/rr $TARGET_PATH/system/xbin/rr
-  rm -f $TARGET_PATH/system/etc/firmware
+  rm -rf $TARGET_PATH/system/etc/firmware
   mkdir -p $TARGET_PATH/system/etc/firmware
   cp -rf $KERNEL_PATH/firmware/* $TARGET_PATH/system/etc/firmware/
   cp -rf $KERNEL_PATH/hacks/* $TARGET_PATH/system/bin/
@@ -87,6 +87,11 @@ function install_b2g_helpers()
   cp $TARGET_PATH/obj/EXECUTABLES/fakeperm_intermediates/fakeperm $TARGET_PATH/system/bin/
   cp $TARGET_PATH/obj/EXECUTABLES/omapupdater_intermediates/omapupdater $TARGET_PATH/system/bin/
   cat gonk-misc/init.b2g.rc >> $TARGET_PATH/root/init.nokiarm-696board.rc
+  rm -rf $TARGET_PATH/system/b2g
+  cp -rf $GECKO_OBJDIR/dist/b2g $TARGET_PATH/system/
+  mkdir -p $TARGET_PATH/root/data
+  rm -rf $TARGET_PATH/root/data/local
+  cp -rf gaia/profile $TARGET_PATH/root/data/local
 }
 
 function install_busybox_links()
