@@ -28,12 +28,36 @@ and talk to us on IRC:
 * autoconf-2.13
 * git
 * ccache
-* gcc/g++
+* gcc/g++ __4.6.3 or older__
 * bison
 * flex
 * 32bit ncurses
-* 32bit zlib
+* zlib
+  * You need both zlib1g and zlib1g-dev for both i386 and amd64. That is, for
+    Ubuntu 12.04 Precise or older, they are zlib1g, zlib1g-dev, zlib1g:i386, and
+    zlib1g-dev:i386; for Ubuntu 12.10 Quantal or newer, they are zlib1g:amd64,
+    zlib1g-dev:amd64, zlib1g:i386, and zlib1g-dev:i386.
 * make
+
+Additionally, if you're building the emulator, you probably need the the Mesa
+implementation of OpenGL.  On Ubuntu, this is the __libgl1-mesa-dev__ package.
+
+Ubuntu 12.10 ships with gcc 4.7 by default, which causes build errors pretty
+early in the process.  To use gcc 4.6, edit .userconfig and add
+
+    export CC=gcc-4.6
+    export CXX=g++-4.6
+
+Of course, you'll need the g++-4.6 package installed.
+
+On Ubuntu 13.04, for example, you might find `apt-get install zlib1g{,-dev}:i386`
+is going to do something seriously wrong like removing all your toolchain
+packages. You may execute either `apt-get install --no-install-recommends <packages>`
+to explicitly disallow installing recommended packages, or `aptitude` to
+interactively select the very necessary packages you need.
+
+For full lists of minimum required packages that build B2G emulator on all
+recent Ubuntu releases, see https://bugzilla.mozilla.org/show_bug.cgi?id=866489 .
 
 ### OSX
 
@@ -44,6 +68,53 @@ and talk to us on IRC:
   * gpg
   * ccache
   * autoconf-2.13 - brew install https://raw.github.com/Homebrew/homebrew-versions/master/autoconf213.rb
+
+#### Note: Builds for some devices require case-sensitive file systems
+
+Some B2G subrepositories contain files whose names differ only in case.
+This causes build failures when building for some target phones (such as the
+Hamachi) if you're on a case-insensitive FS (the default on Mac).  You'll see
+an error like the following during the ./build.sh step:
+
+> [entering kernel]
+> ERROR: You have uncommited changes in kernel
+> You may force overwriting these changes
+> with |source build/envsetup.sh force|
+> 
+> ERROR: Patching of kernel/ failed.
+
+If you hit this error, the easiest way around it is to build on a
+case-sensitive file-system.  Doing so doesn't require any re-partitioning; you
+can simply create a disk image and build within it using the following
+commands.
+
+    hdiutil create -volname 'firefoxos' -type SPARSE -fs 'Case-sensitive Journaled HFS+' -size 40g ~/firefoxos.sparseimage
+    open ~/firefoxos.sparseimage
+    cd /Volumes/firefoxos/
+
+See https://bugzilla.mozilla.org/show_bug.cgi?id=867259 for details.
+
+#### Note: Linker OOM with noopt builds
+
+If you build with B2G_NOOPT=1 on MacOS, your linker may run out of memory and
+crash.
+
+The solution, if you really want a noopt build, is to use a 64-bit linker.
+Follow these steps:
+
+1. Clone this repository somewhere
+
+    $ git://github.com/jld/b2g-toolchain-prebuilt.git
+
+2. In .userconfig, add the following line.
+
+        export TARGET_TOOLS_PREFIX=/path/to/b2g-toolchain-prebuilt/toolchain-4.4.3/x86_64-apple-darwin/bin/arm-linux-androideabi-
+
+  (Of course, replace /path/to/b2g-toolchain-prebuilt/ with the actual path.)
+
+3. Rebuild.
+
+See https://bugzilla.mozilla.org/show_bug.cgi?id=854535 for details.
 
 ## Configure
 
@@ -80,6 +151,8 @@ It can sometimes be useful to build against a different Gecko than the one speci
 
     GECKO_PATH=/path/to/mozilla-central
     GECKO_OBJDIR=/path/to/mozilla-central/objdir-gonk
+
+Note that if you switch your userconfig's gecko path, you need to rm -rf the objdir and rebuild.
 
 ## Build
 
@@ -147,3 +220,4 @@ To run specific tests (individual files, directories, or ini files):
 Specify the full path if you're using a different Gecko repo:
 
     ./test.sh /path/to/mozilla-central/dom/battery/test/marionette/test_battery.py
+

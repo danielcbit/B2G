@@ -13,7 +13,7 @@ This script attempts to bootstrap a "minimal" OS X installation
 with the tools necessary to build Boot2Gecko.
 
 The only requirement for running this script should be XCode 4.x / 3.x,
-and either OS X 10.6 (Snow Leopard) or 10.7 (Lion)
+and either OS X 10.6 (Snow Leopard), 10.7 (Lion), or 10.8 (Mountain Lion).
 
 Usage: $0 [options]
 Options:
@@ -89,7 +89,7 @@ run_command() {
 
 bootstrap_mac() {
     check_xcode
-
+  
     homebrew_formulas=""
     git=`which git`
     if [ $? -ne 0 ]; then
@@ -117,6 +117,13 @@ bootstrap_mac() {
         homebrew_formulas+=" yasm:yasm"
     else
         echo "Found yasm: $yasm"
+    fi
+
+    cmake=`which cmake`
+    if [ $? -ne 0 ]; then
+        homebrew_formulas+=" cmake:cmake"
+    else
+        echo "Found cmake: $cmake"
     fi
 
     found_autoconf213=1
@@ -207,56 +214,160 @@ bootstrap_mac() {
     fi
 }
 
-check_xcode() {
-    xcode43_path=/Applications/Xcode.app
-    pre_xcode43_path=/Developer
+install_xcode() {
+  if [[ $osx_version == "10.7" || $osx_version == "10.8" ]]; then
+      # In Lion, we open the Mac App Store for Xcode
+      # Opening the App Store is annoying, so ignore option_auto_install here
+      echo "You will need to install Xcode 4.3 or newer to build Boot to Gecko on Mac OS X 10.7."
+      prompt_question "Do you want to open Xcode in the Mac App Store? [Y/n] " Y
+      if [[ $answer = Y ]]; then
+          # Xcode iTunes http URL: http://itunes.apple.com/us/app/xcode/id497799835?mt=12
+          # Mac App Store URL: macappstore://itunes.apple.com/app/id497799835?mt=12
+          run_command open macappstore://itunes.apple.com/app/id497799835\?mt\=12
+      fi
+  else
+      echo "You will need to install \"Xcode 3.2.6 for Snow Leopard\" to build Boot2Gecko."
+      echo "Note: This is a 4.1GB download, and requires a free Apple account."
+      echo ""
+      prompt_question "Do you want to download XCode 3.2.6 for Snow Leopard in your browser? [Y/n] " Y
+      if [[ $answer = Y ]]; then
+          run_command open https://developer.apple.com/downloads/download.action\?path=Developer_Tools/xcode_3.2.6_and_ios_sdk_4.3__final/xcode_3.2.6_and_ios_sdk_4.3.dmg
+      fi
+  fi
+  echo ""
+  echo "After installing Xcode, follow these steps:"
+  echo "  1. Run Xcode to allow it to configure itself."
+  echo "  2. If it asks for permission to update the command line tools, let it."
+  echo "  3. If it doesn't, open the Preferences, go to the Downloads panel, and install them."
+  echo ""
+  echo "Then run this script again to continue configuring to build Boot2Gecko."
+}
 
-    if [ -d "$xcode43_path" ]; then
-        xcode_path=$xcode43_path
-        osx_106_sdk=$xcode_path/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk
+download_ten_six_sdk () {
+    dmgpath="$1"
+    echo "You need to download the 10.6 SDK.  To do this, you'll need to download"
+    echo "the Xcode 4.3 installer.  Download it to the default location (~/Downloads)"
+    prompt_question "Do you want to open the Apple Developer Site to download Xcode 4.3? [Y/n] " Y
+    if [[ $answer = Y ]] ; then
+        run_command open https://developer.apple.com/downloads/download.action\?path=Developer_Tools/xcode_4.3_for_lion_21266/xcode_43_lion.dmg
+    fi
+    echo "When this is downloaded, rerun this script.  If you had to download to an"
+    echo "alternate location, use the XCODE43_DMG_LOCATION environment variable"
+}
+
+install_ten_six_sdk () {
+    dmgpath=${XCODE43_DMG_LOCATION:-~/Downloads/xcode_43_lion.dmg}
+    if [[ ! -f $dmgpath ]] ; then
+        download_ten_six_sdk $dmgpath
+        exit 1
+    fi
+    echo "Installing 10.6 sdk"
+    if [ "$option_dry_run" == "yes" ] ; then
+        mp="no_tmp_file_for_dry_run"
+    else
+        mp=$(mktemp -d -t xcode43_mount)
+    fi
+    run_command hdiutil attach "$dmgpath" -mountpoint "$mp"
+    sdk_dir="$mp/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk"
+    target="/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/"
+    echo "Beginning to copy SDK over"
+    run_command sudo cp -a "$sdk_dir" "$target"
+    if [ $? -eq 0 ] ; then
+        echo "Done"
+    else
+        echo "Failed to copy 10.6 SDK"
+    fi
+    run_command hdiutil unmount "$mp" &&
+    run_command rm -rf "$mp"
+    if [ $? -ne 0 ] ; then
+        echo "Failed to unmount $dmgpath from $mp"
+    fi
+}
+
+check_xcode() {
+    osx_version=`sw_vers -productVersion`
+    osx_version=${osx_version:0:4}
+
+    # First, if xcode-select isn't around, we have no Xcode at all, or at least not
+    # the command-line tools
+    
+    xcode_select=`which xcode-select`
+    if [ $? -ne 0 ]; then
+      install_xcode
+      exit 1
+    fi
+    
+    # Next, run xcode-select to be sure we don't get an error; sometimes it's there
+    # even though Xcode is not (why!?)
+    
+    tmp_select=`xcode-select --print-path &> /dev/null`
+    if [ $? -ne 0 ]; then
+      install_xcode
+      exit 1
+    fi
+    
+    # Assume the old Xcode 3 location, then look elsewhere
+    
+    if [ -d "/Developer/Applications/Xcode.app" ]; then
+      xcode_path=/Developer/Applications/Xcode.app
+      osx_106_sdk=/Developer/SDKs/MacOSX10.6.sdk
+      osx_sdk=$osx_106_sdk
+    else
+      xcode_dev_path=`xcode-select --print-path`
+      xcode_path=${xcode_dev_path%/Contents/Developer}
+      osx_106_sdk=$xcode_dev_path/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk
+      osx_107_sdk=$xcode_dev_path/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk
+      osx_108_sdk=$xcode_dev_path/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk
+    fi
+        
+    test -d $osx_106_sdk
+    if [ $? -ne 0 ] ; then
+        if [ "$option_auto_install" = "no" ]; then
+            echo "You don't have the 10.6 SDK.  This means that you're going to"
+            echo "see lots of error messages and possibly have build issues."
+            prompt_question "Do you want to install it? [Y/n] " Y
+        else
+            echo "Automatically install 10.6 SDK"
+            answer=Y
+        fi
+        if [[ $answer == Y ]] ; then
+            install_ten_six_sdk
+            exit 1
+        fi
     fi
 
-    if [ -d "$pre_xcode43_path" ]; then
-        xcode_path=$pre_xcode43_path
-        osx_106_sdk=$xcode_path/SDKs/MacOSX10.6.sdk
+    # Start with the 10.6 SDK and fall back toward newer and newer
+    # ones until we find one
+    
+    if [ -d "$osx_106_sdk" ]; then
+      osx_sdk=$osx_106_sdk
+    elif [ -d "$osx_107_sdk" ]; then
+      osx_sdk=$osx_107_sdk
+    elif [ -d "$osx_108_sdk" ]; then
+      osx_sdk=$osx_108_sdk
+    fi
+    
+    # Peel the OS X SDK version out of the path so we don't have to mess with it
+    # by hand; courtesy Geoff Weiss
+    if [[ $osx_sdk =~ MacOSX([0-9]+\.[0-9]+)\.sdk ]]; then
+      sdk_ver=${BASH_REMATCH[1]}
+    else
+      sdk_ver=UNKNOWN
     fi
 
     if [ ! -d "$xcode_path" ]; then
-        echo "Could not find an Xcode installation in either of these locations:"
-        echo "    $xcode43_path"
-        echo "    $pre_xcode43_path"
-        echo ""
+        install_xcode
+        exit 1
     else
         echo "Found Xcode: $xcode_path"
-        if [ ! -d "$osx_106_sdk" ]; then
-            echo "Error: Could not find MacOSX10.6.sdk in this location:"
-            echo "    $osx_106_sdk"
+        if [ ! -d "$osx_sdk" ]; then
+            echo "Error: Could not find Mac OS X $sdk_ver SDK in this location:"
+            echo "    $osx_sdk"
             echo ""
             exit 1
         else
-            echo "Found OSX 10.6 SDK: $osx_106_sdk"
+            echo "Found Mac OS X $sdk_ver SDK: $osx_sdk"
             return 0
-        fi
-    fi
-
-    osx_version=`sw_vers -productVersion`
-
-    if [[ ${osx_version:0:4} == "10.7" ]]; then
-        # In Lion, we open the Mac App Store for Xcode 4.3.
-        # Opening the App Store is annoying, so ignore option_auto_install here
-        prompt_question "Do you want to open Xcode 4.3 in the Mac App Store? [Y/n] " Y
-        if [[ $answer = Y ]]; then
-            # Xcode 4.3 iTunes http URL: http://itunes.apple.com/us/app/xcode/id497799835?mt=12
-            # Mac App Store URL: macappstore://itunes.apple.com/app/id497799835?mt=12
-            run_command open macappstore://itunes.apple.com/app/id497799835\?mt\=12
-        fi
-    else
-        echo "You will need to install \"Xcode 3.2.6 for Snow Leopard\" to build Boot2Gecko."
-        echo "Note: This is a 4.1GB download, and requires a free Apple account."
-        echo ""
-        prompt_question "Do you want to download XCode 3.2.6 for Snow Leopard in your browser? [Y/n] " Y
-        if [[ $answer = Y ]]; then
-            run_command open https://developer.apple.com/downloads/download.action\?path=Developer_Tools/xcode_3.2.6_and_ios_sdk_4.3__final/xcode_3.2.6_and_ios_sdk_4.3.dmg
         fi
     fi
 
@@ -323,7 +434,7 @@ install_homebrew() {
         )
     fi
 
-    installer_url="https://raw.github.com/mxcl/homebrew/master/Library/Contributions/install_homebrew.rb"
+    installer_url="https://raw.github.com/mxcl/homebrew/go/install"
 
     run_command curl -fsSL $installer_url -o $tmp_installer
     run_command ruby $tmp_installer

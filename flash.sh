@@ -5,6 +5,8 @@
 ADB=${ADB:-adb}
 FASTBOOT=${FASTBOOT:-fastboot}
 HEIMDALL=${HEIMDALL:-heimdall}
+VARIANT=${VARIANT:-eng}
+FULLFLASH=false
 
 if [ ! -f "`which \"$ADB\"`" ]; then
 	ADB=out/host/`uname -s | tr "[[:upper:]]" "[[:lower:]]"`-x86/bin/adb
@@ -43,31 +45,89 @@ update_time()
 	run_adb shell setprop persist.sys.timezone $TIMEZONE
 }
 
+fastboot_flash_image()
+{
+	# $1 = {userdata,boot,system}
+	imgpath="out/target/product/$DEVICE/$1.img"
+	out="$(run_fastboot flash "$1" "$imgpath" 2>&1)"
+	rv="$?"
+	echo "$out"
 
+	if [[ "$rv" != "0" ]]; then
+		# Print a nice error message if we understand what went wrong.
+		if grep -q "too large" <(echo "$out"); then
+			echo ""
+			echo "Flashing $imgpath failed because the image was too large."
+			echo "Try re-flashing after running"
+			echo "  \$ rm -rf $(dirname "$imgpath")/data && ./build.sh"
+		fi
+		return $rv
+	fi
+}
 
 flash_fastboot()
 {
-	run_adb reboot bootloader ;
-	run_fastboot devices &&
-	( [ "$1" = "nounlock" ] || run_fastboot oem unlock || true )
+	local lockedness=$1 project=$2
+	case $lockedness in
+	"unlock"|"nounlock")
+		;;
+	*)
+		echo "$0: $FUNCNAME: Invalid argument: $lockedness"
+		return 1
+		;;
+	esac
+	case $project in
+	"system"|"boot"|"userdata"|"")
+		;;
+	*)
+		echo "$0: Unrecognized project: $project"
+		return 1
+		;;
+	esac
 
-	if [ $? -ne 0 ]; then
+	case $DEVICE in
+	"helix")
+		run_adb reboot oem-1
+		;;
+	*)
+		run_adb reboot bootloader
+		;;
+	esac
+
+	if ! run_fastboot devices; then
 		echo Couldn\'t setup fastboot
-		return -1
+		return 1
 	fi
-	case $2 in
+
+	case $lockedness in
+	"unlock")
+		run_fastboot oem unlock || true
+		;;
+	esac
+
+	case $project in
 	"system" | "boot" | "userdata")
-		run_fastboot flash $2 out/target/product/$DEVICE/$2.img &&
+		fastboot_flash_image $project &&
 		run_fastboot reboot
 		;;
 
-	*)
-		run_fastboot erase cache &&
-		run_fastboot erase userdata &&
-		run_fastboot flash userdata out/target/product/$DEVICE/userdata.img &&
-		[ ! -e out/target/product/$DEVICE/boot.img ] ||
-		run_fastboot flash boot out/target/product/$DEVICE/boot.img &&
-		run_fastboot flash system out/target/product/$DEVICE/system.img &&
+	"")
+		# helix doesn't support erase command in fastboot mode.
+		VERB="erase"
+		if [ "$DEVICE" == "mako" ] || [ "$DEVICE" == "flo" ]; then
+			VERB="format"
+		fi
+		if [ "$DEVICE" != "helix" ]; then
+			run_fastboot $VERB cache &&
+			run_fastboot $VERB userdata
+			if [ $? -ne 0 ]; then
+				return $?
+			fi
+		fi
+		fastboot_flash_image userdata &&
+		([ ! -e out/target/product/$DEVICE/boot.img ] ||
+		fastboot_flash_image boot) &&
+		fastboot_flash_image system &&
 		run_fastboot reboot &&
 		update_time
 		;;
@@ -77,6 +137,16 @@ flash_fastboot()
 
 flash_heimdall()
 {
+	local project=$1
+	case $project in
+	"system"|"kernel"|"")
+		;;
+	*)
+		echo "$0: Unrecognized project: $project"
+		return 1
+		;;
+	esac
+
 	if [ ! -f "`which \"$HEIMDALL\"`" ]; then
 		echo Couldn\'t find heimdall.
 		echo Install Heimdall v1.3.1 from http://www.glassechidna.com.au/products/heimdall/
@@ -88,16 +158,16 @@ flash_heimdall()
 		echo Couldn\'t reboot into download mode. Hope you\'re already in download mode
 	fi
 
-	case $1 in
+	case $project in
 	"system")
-		$HEIMDALL flash --factoryfs out/target/product/$DEVICE/$1.img
+		$HEIMDALL flash --factoryfs out/target/product/$DEVICE/$project.img
 		;;
 
 	"kernel")
 		$HEIMDALL flash --kernel device/samsung/$DEVICE/kernel
 		;;
 
-	*)
+	"")
 		$HEIMDALL flash --factoryfs out/target/product/$DEVICE/system.img --kernel device/samsung/$DEVICE/kernel &&
 		update_time
 		;;
@@ -128,6 +198,64 @@ flash_heimdall()
 	echo Run \|./flash.sh gaia\| if you wish to install or update gaia.
 }
 
+# Delete files in the device's /system/b2g that aren't in
+# $GECKO_OBJDIR/dist/b2g.
+#
+# We do this for general cleanliness, but also because b2g.sh determines
+# whether to use DMD by looking for the presence of libdmd.so in /system/b2g.
+# If we switch from a DMD to a non-DMD build and then |flash.sh gecko|, we want
+# to disable DMD, so we have to delete libdmd.so.
+#
+# Note that we do not delete *folders* in /system/b2g.  This is intentional,
+# because some user data is stored under /system/b2g (e.g. prefs), but it seems
+# to be stored only inside directories.
+delete_extra_gecko_files_on_device()
+{
+	files_to_remove="$(cat <(ls "$GECKO_OBJDIR/dist/b2g") <(run_adb shell "ls /system/b2g" | tr -d '\r') | sort | uniq -u)"
+	if [[ "$files_to_remove" != "" ]]; then
+		# We expect errors from the call to rm below under two circumstances:
+		#
+		#  - We ask rm to remove a directory (per above, we don't
+		#    actually want to remove directories, so rm is doing the
+		#    right thing by not removing dirs)
+		#
+		#  - We ask rm to remove a file which isn't on the device (if
+		#    you squint at files_to_remove, you'll see that it will
+		#    contain files which are on the host but not on the device;
+		#    obviously we can't remove those files from the device).
+
+		run_adb shell "cd /system/b2g && rm $files_to_remove" > /dev/null
+	fi
+	return 0
+}
+
+flash_gecko()
+{
+	delete_extra_gecko_files_on_device &&
+	run_adb push $GECKO_OBJDIR/dist/b2g /system/b2g &&
+	return 0
+}
+
+flash_gaia()
+{
+	GAIA_MAKE_FLAGS="ADB=\"$ADB\""
+	USER_VARIANTS="user(debug)?"
+	if [[ "$VARIANT" =~ $USER_VARIANTS ]]; then
+		# Gaia's build takes care of remounting /system for production builds
+		GAIA_MAKE_FLAGS+=" PRODUCTION=1"
+	fi
+	adb wait-for-device
+	if adb shell cat /data/local/webapps/webapps.json | grep -qs '"basePath": "/system' ; then
+		echo -n "In ${bold}production${offbold} mode"
+		export B2G_SYSTEM_APPS=1
+		adb remount
+	else
+		echo -n "In ${bold}dev${offbold} mode"
+	fi 
+	make -C gaia install-gaia $GAIA_MAKE_FLAGS
+	return 0
+}
+
 while [ $# -gt 0 ]; do
 	case "$1" in
 	"-s")
@@ -135,7 +263,19 @@ while [ $# -gt 0 ]; do
 		FASTBOOT_FLAGS+="-s $2"
 		shift
 		;;
+	"-f")
+		FULLFLASH=true
+		;;
+	"-h"|"--help")
+		echo "Usage: $0 [-s device] [-f] [project]"
+		exit 0
+		;;
+	"-"*)
+		echo "$0: Unrecognized option: $1"
+		exit 1
+		;;
 	*)
+		FULLFLASH=true
 		PROJECT=$1
 		;;
 	esac
@@ -144,17 +284,16 @@ done
 
 case "$PROJECT" in
 "gecko")
-	run_adb remount &&
-	run_adb push $GECKO_OBJDIR/dist/b2g /system/b2g &&
-	echo Restarting B2G &&
 	run_adb shell stop b2g &&
+	run_adb remount &&
+	flash_gecko &&
+	echo Restarting B2G &&
 	run_adb shell start b2g
 	exit $?
 	;;
 
 "gaia")
-	make -C gaia install-gaia ADB="$ADB"
-	make -C gaia install-media-samples ADB="$ADB"
+	flash_gaia
 	exit $?
 	;;
 
@@ -165,19 +304,28 @@ case "$PROJECT" in
 esac
 
 case "$DEVICE" in
-"otoro")
+"leo"|"hamachi"|"helix"|"fugu")
+	if $FULLFLASH; then
+		flash_fastboot nounlock $PROJECT
+		exit $?
+	else
+		run_adb root &&
+		run_adb shell stop b2g &&
+		run_adb remount &&
+		flash_gecko &&
+		flash_gaia &&
+		update_time &&
+		echo Restarting B2G &&
+		run_adb shell start b2g
+	fi
+	exit $?
+	;;
+
+"otoro"|"unagi"|"keon"|"peak"|"inari"|"sp8810ea"|"wasabi")
 	flash_fastboot nounlock $PROJECT
 	;;
 
-"panda")
-	flash_fastboot unlock $PROJECT
-	;;
-
-"maguro")
-	flash_fastboot unlock $PROJECT
-	;;
-
-"crespo")
+"panda"|"maguro"|"m4"|"crespo"|"crespo4g"|"mako"|"flo")
 	flash_fastboot unlock $PROJECT
 	;;
 
